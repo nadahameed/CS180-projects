@@ -101,3 +101,11 @@ a:hover {
 .content {
         margin-bottom: 60px;
     }
+
+.subc {
+    font-size: 0.85em;
+}
+
+table td {
+    padding-bottom: 15px;
+}

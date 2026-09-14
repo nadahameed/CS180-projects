@@ -1,0 +1,267 @@
+<html>
+    <head>
+        <link rel="stylesheet" href="../styles.css">
+        <style>
+
+			.container {
+				margin: 0 auto;
+				padding: 60px 20%;
+			}
+
+			figure {
+				text-align: center;
+			}
+
+			img {
+				display: inline-block;
+			}
+
+		</style>
+    </head>
+
+    <body>
+        <div class="container">
+            <h1>Project 1</h1>
+            <p class="author">Nada Hameed</p>
+            <h2>Colorizing the Prokudin-Gorskii photo collection</h2>
+
+            <p>Before color photographs were captured, Sergei Mikhailovich Prokudin-Gorskii 
+                would capture photographs onto glass plates, using red, blue, and green 
+                filters to capture the different color 'channels' (as we refer to them 
+                now). His glass plate negatives captured the end of the Russian Empire, and 
+                they are now available online.
+            </p>
+
+            <div style="display: flex; justify-content: center;">
+                <img src="images/tobolsk.jpg" width="200px" />
+            </div>
+
+            <p>There are three versions of the same image, each showing one color 
+                channel of the image (the order of these filters is blue, green, red). 
+                This project takes those three color channels and merges them into one 
+                colorized photograph.
+            </p>
+
+            <br>
+            
+            <div>
+                <h3>Single-scale alignment</h3>
+
+                <p>The brute-force method is to take the three filters and overlap them 
+                    where they align the most. When there is a corner on an image, the red, 
+                    blue, and green filters will all reflect that sharp edge at similar 
+                    intensities. With that motivation in mind, for each color pair, I found the 
+                    alignment that would minimize the error between the two, and then merged 
+                    those results into a final image.
+                </p>
+
+                <p>To minimize the error, there were two methods to consider, Euclidean 
+                    distance and normalized cross-correlation (NCC). I decided to go for NCC, 
+                    which is a dot product between two mean subtracted normalized vectors. Raw 
+                    Euclidean distance is sensitive to variations in image brightness between 
+                    channels, but NCC subtracts the mean and normalizes vectors, so it is invariant 
+                    to uniform brightness shifts across the plates. I 
+                    used a for loop to iterate through a window (30 x 30 pixels) and pick the 
+                    alignment that would minimize my error. This worked well on smaller images. 
+                    Before calculating NCC, I cropped around 10% of the outer border margin, 
+                    which prevents the dark outer glass frame from messing with the alignment 
+                    score.
+                </p>
+
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <table style="width: 100%; text-align: center; border-collapse: collapse;">
+                        <tr>
+                            <td style="text-align: center;">
+                            <img src="images/single-scale/out_cathedral.jpg" width="250px"/>
+                            <figcaption>Cathedral</figcaption>
+                            <figcaption class="subc">G: (2, 5)</figcaption>
+                            <figcaption class="subc">R: (3, 12)</figcaption>
+                            </td>
+                            <td style="text-align: center;">
+                            <img src="images/single-scale/out_monastery.jpg" width="250px"/>
+                            <figcaption>Monastery</figcaption>
+                            <figcaption class="subc">G: (2, -3)</figcaption>
+                            <figcaption class="subc">R: (2, 3)</figcaption>
+                            </td>
+                            <td style="text-align: center;">
+                            <img src="images/single-scale/out_tobolsk.jpg" width="250px"/>
+                            <figcaption>Tobolsk</figcaption>
+                            <figcaption class="subc">G: (3, 3)</figcaption>
+                            <figcaption class="subc">R: (3, 6)</figcaption>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+            </div>
+
+            <br>
+
+            <div>
+                <h3>Multi-scale pyramid alignment</h3>
+
+                <p>However, for high-resolution .tig images, this single-scale alignment 
+                    method is an incredibly computationally expensive process. To speed up 
+                    the process, I implemented a multi-scale pyramid alignment method using a recursive 
+                    coarse to specific search.
+                </p>
+                <p>
+                    The recursive pyramid starts by checking the resolution of the image channels. If 
+                    it's around 300 x 300 pixels (the size of the smaller images on which brute-force 
+                    worked), I call the brute-force align method to get a coarse displacement (which 
+                    uses a default window of [-15, 15] for the error search). Otherwise, I halve the image 
+                    (width and height) and recursively call the pyramid function on that downsized image.
+                </p>
+                <p>
+                    As the recursion goes back up to higher resolutions, the method doubles the estimated 
+                    displacement vector from the lower resolution level to account for the 2x scale. 
+                    It applies the coarse shift I computed to pre-align the channel, and then does a fast 
+                    error search using a tighter [-2, 2] pixel window for fine-tuning the alignment.                </p>
+
+                <br>
+
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <table style="width: 100%; text-align: center; border-collapse: collapse;">
+                        <tr>
+                            <td style="text-align: center;">
+                            <img src="images/pyramid/out_church.jpg" width="350px"/>
+                            <figcaption>Church</figcaption>
+                            <figcaption class="subc">G: (25, 4)</figcaption>
+                            <figcaption class="subc">R: (58, -4)</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/pyramid/out_harvesters.jpg" width="350px"/>
+                            <figcaption>Harvesters</figcaption>
+                            <figcaption class="subc">G: (60, 17)</figcaption>
+                            <figcaption class="subc">R: (124, 13)</figcaption>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="text-align: center;">
+                            <img src="images/pyramid/out_icon.jpg" width="350px"/>
+                            <figcaption>Icon</figcaption>
+                            <figcaption class="subc">G: (41, 17)</figcaption>
+                            <figcaption class="subc">R: (89, 23)</figcaption>
+                            </td>
+                            <td style="text-align: center;">
+                            <img src="images/pyramid/out_ilemselga.jpg" width="350px"/>
+                            <figcaption>Ilemselga</figcaption>
+                            <figcaption class="subc">G: (40, 7)</figcaption>
+                            <figcaption class="subc">R: (130, 11)</figcaption>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="text-align: center;">
+                            <img src="images/pyramid/out_melons.jpg" width="350px"/>
+                            <figcaption>Melons</figcaption>
+                            <figcaption class="subc">G: (82, 11)</figcaption>
+                            <figcaption class="subc">R: (178, 13)</figcaption>
+                            </td>
+                            <td style="text-align: center;">
+                            <img src="images/pyramid/out_religious_painting.jpg" width="350px"/>
+                            <figcaption>Religous painting</figcaption>
+                            <figcaption class="subc">G: (28, 3)</figcaption>
+                            <figcaption class="subc">R: (68, 7)</figcaption>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="text-align: center;">
+                            <img src="images/pyramid/out_self_portrait.jpg" width="350px"/>
+                            <figcaption>Self portrait</figcaption>
+                            <figcaption class="subc">G: (79, 29)</figcaption>
+                            <figcaption class="subc">R: (176, 37)</figcaption>
+                            </td>
+                            <td style="text-align: center;">
+                            <img src="images/pyramid/out_siren.jpg" width="350px"/>
+                            <figcaption>Siren</figcaption>
+                            <figcaption class="subc">G: (49, -6)</figcaption>
+                            <figcaption class="subc">R: (96, -25)</figcaption>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="text-align: center;">
+                            <img src="images/pyramid/out_three_generations.jpg" width="350px"/>
+                            <figcaption>Three generations</figcaption>
+                            <figcaption class="subc">G: (53, 14)</figcaption>
+                            <figcaption class="subc">R: (112, 11)</figcaption>
+                            </td>
+                            <td style="text-align: center;">
+                            <img src="images/pyramid/out_wharf.jpg" width="350px"/>
+                            <figcaption>Wharf</figcaption>
+                            <figcaption class="subc">G: (15, -7)</figcaption>
+                            <figcaption class="subc">R: (83, -16)</figcaption>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+            <br>
+
+            <h4>Images from the LOC archive</h4>
+
+            <p>I tested the effectiveness of my pyramid alignment implementation on 
+                more high-resolution .tif plates from the Library of Congress Prokudin-Gorskii 
+                collection.
+            </p>
+
+            <div style="display: flex; flex-direction: column; align-items: center;">
+                    <table style="width: 100%; text-align: center; border-collapse: collapse;">
+                        <tr>
+                            <td style="text-align: center;">
+                            <img src="images/pyramid/loc/out_loc_railroad_near_kyappeselga.jpg" width="350px"/>
+                            <figcaption>Railroad near Kyappeselga</figcaption>
+                            <figcaption class="subc">G: (20, 8)</figcaption>
+                            <figcaption class="subc">R: (93, 17)</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/pyramid/loc/out_loc_man_with_camel.jpg" width="350px"/>
+                            <figcaption>Man with camel</figcaption>
+                            <figcaption class="subc">G: (19, 15)</figcaption>
+                            <figcaption class="subc">R: (80, 38)</figcaption>
+                            </td>
+                            <td style="text-align: center;">
+                            <img src="images/pyramid/loc/out_loc_bashkir_switchman.jpg" width="350px"/>
+                            <figcaption>Bashkir Switchman</figcaption>
+                            <figcaption class="subc">G: (45, 13)</figcaption>
+                            <figcaption class="subc">R: (97, 16)</figcaption>
+                            </td>
+                        </tr>
+
+                    </table>
+            </div>
+
+            </div>
+
+            <br>
+
+            <div>
+                <h3>Failures</h3>
+
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <img src="images/pyramid/out_emir.jpg" width="400px" />
+                    <figcaption>Emir</figcaption>
+                    <figcaption class="subc">G: (49, 24)</figcaption>
+                    <figcaption class="subc">R: (141, -205)</figcaption>
+                </div>
+
+                <p>This alignment failed with my method. The red channel seems to be 
+                    misaligned, as you can see the red overlay. This is likely because 
+                    the emir's robes are a very vibrant blue, so they will register brightly on 
+                    the blue channel: high pixel intensities. However, the red channel will register the robes as 
+                    dark: very low intensities. 
+                    So the intensity difference will not fare well via the error 
+                    minimization method that I have been using for the other images' 
+                    alignment thus far. There are other methods that can be used, like gradient 
+                    maps (for example, Sobel edge detection), which would align structural edges 
+                    instead of the raw color intensities.
+                </p>
+            </div>
+
+        </div>
+        
+    </body>
+</html>
