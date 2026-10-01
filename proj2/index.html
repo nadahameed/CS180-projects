@@ -1,0 +1,663 @@
+<html>
+    <head>
+        <link rel="stylesheet" href="../styles.css">
+        <style>
+
+			.container {
+				margin: 0 auto;
+				padding: 60px 20%;
+			}
+
+			figure {
+				text-align: center;
+			}
+
+			img {
+				display: inline-block;
+			}
+
+		</style>
+    </head>
+
+    <body>
+        <div class="container">
+            <h1>Project 2</h1>
+            <p class="author">Nada Hameed</p>
+            <h2>Fun with Filters and Frequencies</h2>
+
+            <p>In this project, I worked a lot with implementing convolutions, 
+                as well as various image manipulations, like sharpening, 
+                hybridizing, and multi-resolution blending.
+            </p>
+
+            <div style="display: flex; justify-content: center;">
+                <img src="images/tobolsk.jpg" width="200px" />
+            </div>
+
+            <p>This project was good at honing in on convolutions, but I 
+                think the most important thing I learned was working with 
+                Gaussian and Laplacian pyramids. That's a really cool concept 
+                that I think is worth exploring more in the future.
+            </p>
+
+            <br>
+            
+            <div>
+                <h3>Part 1: Fun with Filters</h3>
+
+                <p>The brute-force method is to take the three filters and overlap them 
+                    where they align the most. When there is a corner on an image, the red, 
+                    blue, and green filters will all reflect that sharp edge at similar 
+                    intensities. With that motivation in mind, for each color pair, I found the 
+                    alignment that would minimize the error between the two, and then merged 
+                    those results into a final image.
+                </p>
+
+                <h4>Part 1.1: Convolutions from Scratch</h4>
+
+                <p>First I implemented convolution from scratch. It was pretty 
+                    straightforward. I first flipped the kernel (horizontally and 
+                    vertically) and padded the image. 
+                    Padding is important because without it, the filter would 
+                    extend past the boundaries of the image, and the output image 
+                    would either shrink or not have the edges properly convolved. So 
+                    I implemented zero padding at the boundaries, extending the image 
+                    a bit.
+                    Then I slide the filter over the padded image; at each position
+                    /pixel, I computed the dot product between the image and filter 
+                    overlap, and that is what I put in the resulting image's pixel.
+                </p>
+
+                <div style="display: flex; gap: 20px;">
+
+                    <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
+                        <h5>Four for loops</h5>
+                        <pre style="margin: 0; flex: 1; height: 100%; box-sizing: border-box;"><code style="text-align: left; display: block;">def convolution(img, kernel):
+    h, w = img.shape
+    kh, kw = kernel.shape
+    ph, pw = kh // 2, kw // 2
+    padded = np.pad(img, ((ph, ph), (pw, pw)), mode='constant')
+
+    flip = np.flip(kernel)
+    rv = np.zeros((h, w))
+    for i in range(h):
+        for j in range(w):
+            pixel = 0
+            for x in range(kh):
+                for y in range(kw):
+                    pixel += flip[x, y] * padded[i + x, j + y]
+            rv[i, j] = pixel
+
+    return rv</code></pre>
+                    </div>
+
+                    <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
+                        <h5>Two for loops</h5>
+                        <pre style="margin: 0; flex: 1; height: 100%; box-sizing: border-box;"><code style="text-align: left; display: block;">def convolution(img, kernel):
+    h, w = img.shape
+    kh, kw = kernel.shape
+    ph, pw = kh // 2, kw // 2
+    padded = np.pad(img, ((ph, ph), (pw, pw)), mode='constant')
+
+    flip = np.flip(kernel)
+    rv = np.zeros((h, w))
+    for i in range(h):
+        for j in range(w):
+            pixels = padded[i : i + kh, j : j + kw]
+            rv[i, j] = np.sum(pixels * flip)
+
+    return rv</code></pre>
+                    </div>
+
+                </div>
+
+                <br>
+
+                <h5 style="text-align: center;">Manual convolution vs. built-in convolution</h5>
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <table style="width: 100%; text-align: center; border-collapse: collapse;">
+                        <tr>
+                            <td style="text-align: center;">
+                            <img src="images/1.1/portrait.jpg" width="300px"/>
+                            <figcaption>Original photo</figcaption>
+                            </td>
+                            <td style="text-align: center;">
+                            <img src="images/1.1/portrait_box.jpg" width="300px"/>
+                            <figcaption>Box filter</figcaption>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="text-align: center;">
+                            <img src="images/1.1/portrait_Dx.jpg" width="300px"/>
+                            <figcaption>Dx filter</figcaption>
+                            </td>
+                            <td style="text-align: center;">
+                            <img src="images/1.1/portrait_Dy.jpg" width="300px"/>
+                            <figcaption>Dy filter</figcaption>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                <br>
+
+                <h5 style="text-align: center;">Runtime</h5>
+                <div style="display: flex; justify-content: center; margin: 20px 0;">
+                    <table style="border-collapse: collapse; width: 80%; max-width: 600px; text-align: center; font-family: sans-serif;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #333;">
+                                <th style="padding: 10px;">Kernel</th>
+                                <th style="padding: 10px;">Four Loops</th>
+                                <th style="padding: 10px;">Two Loops</th>
+                                <th style="padding: 10px;">SciPy</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="border-bottom: 1px solid #ddd;">
+                                <td style="padding: 10px; font-weight: bold;">9x9 box</td>
+                                <td style="padding: 10px;">4.27 s</td>
+                                <td style="padding: 10px;">0.51 s</td>
+                                <td style="padding: 10px;">0.026 s</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid #ddd;">
+                                <td style="padding: 10px; font-weight: bold;">Dx</td>
+                                <td style="padding: 10px;">0.17 s</td>
+                                <td style="padding: 10px;">0.48 s</td>
+                                <td style="padding: 10px;">0.002 s</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px; font-weight: bold;">Dy</td>
+                                <td style="padding: 10px;">0.18 s</td>
+                                <td style="padding: 10px;">0.48 s</td>
+                                <td style="padding: 10px;">0.003 s</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <p>The difference in runtime is evident when using 4 for loops vs. 2 for loops. 
+                    4 for loops is excessive overhead. 2 for loops is significantly faster. SciPy 
+                    was even faster, because turns out it optimizes with FFTs and all. Anyway, I 
+                    had to resize my image, because using a large image from my iPhone took forever 
+                    (since it is literally iterating over thousands of pixels).
+                </p>
+
+                <br>
+                <h4>Part 1.2: Finite Difference Operator</h4>
+
+                <p>In this part, I convolved the image with finite difference operators, Dx and Dy. From that, 
+                    I computed the gradient magnitude image, and then binarized that using a threshold. This 
+                    threshold was meant to hide noise at a certain level while showing true edges. The 
+                    threshold that I settled on was 0.20. Lower numbers had a lot of noise interspersed, while 
+                    higher numbers caused a lot of details to be lost.
+                </p>
+
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <table style="width: 100%; text-align: center; border-collapse: collapse;">
+                        <tr>
+                            <td style="text-align: center;">
+                            <img src="images/1.2/cameraman.png" width="300px"/>
+                            <figcaption>Original image</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/1.2/cameraman_dx.png" width="300px"/>
+                            <figcaption>Dx</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/1.2/cameraman_dy.png" width="300px"/>
+                            <figcaption>Dy</figcaption>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="text-align: center;">
+                            <img src="images/1.2/cameraman_gradient.png" width="300px"/>
+                            <figcaption>Gradient magnitude</figcaption>
+                            </td>
+                            <td style="text-align: center;">
+                            <img src="images/1.2/cameraman_edges.png" width="300px"/>
+                            <figcaption>Binarized with T=0.2</figcaption>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                <br>
+                <h4>Part 1.3: Derivative of Gaussian (DoG) Filter</h4>
+
+                <p>When we did the finite difference edge detection, there was a lot 
+                    of noise. To deal with this, we first convolved the image with a 
+                    2D Gaussian filter (I chose the size to be 9x9, with sigma=1.5) 
+                    to smooth out finer details and high frequencies a bit. Then, I 
+                    applied the finite difference operators Dx and Dy to this blurred 
+                    image to get smoothed partial derivatives. When I calculated the 
+                    gradient magnitude on the smoothed image, the edge detection is a 
+                    lot cleaner, and the threshold was a lot lower (0.06). So we got 
+                    rid of noisy specks in the background, but kept the strong outlines 
+                    of the main items in the scene.
+                </p>
+
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <table style="width: 100%; text-align: center; border-collapse: collapse;">
+                        <tr>
+                            <td style="text-align: center;">
+                            <img src="images/1.3/cameraman_blurred.png" width="300px"/>
+                            <figcaption>Blurred image</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/1.3/cameraman_dx_smooth.png" width="300px"/>
+                            <figcaption>Smoothed Dx</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/1.3/cameraman_dy_smooth.png" width="300px"/>
+                            <figcaption>Smoothed Dy</figcaption>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="text-align: center;">
+                            <img src="images/1.3/cameraman_mag_smooth.png" width="300px"/>
+                            <figcaption>Smoothed gradient magnitude</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/1.3/cameraman_edges_smooth.png" width="300px"/>
+                            <figcaption>Smoothed binarized edges</figcaption>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                <p>What we also know is that blurring an image and then taking its 
+                    derivative is equivalent to convolving the image with a single 
+                    pre-computed filter, or Derivative of Gaussian (DoG) filters. I 
+                    got the DoG filters by convolving the 2D Gaussian kernel with Dx 
+                    and Dy. Instead of needing 2 sequential convolution steps, we can 
+                    get the gradients in one pass, and then get the binarized edge map. 
+                    They are both identical.
+                </p>
+
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <table style="width: 100%; text-align: center; border-collapse: collapse;">
+                        <tr>
+                            <td style="text-align: center;">
+                            <img src="images/1.3/dog_x_kernel.png" width="200px"/>
+                            <figcaption>DoG x kernel</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/1.3/dog_y_kernel.png" width="200px"/>
+                            <figcaption>DoG y kernel</figcaption>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="text-align: center;">
+                            <img src="images/1.3/cameraman_dog_dx.png" width="300px"/>
+                            <figcaption>DoG Dx filter</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/1.3/cameraman_dog_dy.png" width="300px"/>
+                            <figcaption>DoG Dy filter</figcaption>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <table style="width: 100%; text-align: center; border-collapse: collapse;">
+                        <tr>
+                            <td style="text-align: center;">
+                            <img src="images/1.3/cameraman_mag_dog.png" width="300px"/>
+                            <figcaption>DoG gradient magnitude</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/1.3/cameraman_edges_dog.png" width="300px"/>
+                            <figcaption>DoG edge binarization</figcaption>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+
+            </div>
+
+            <div>
+                <h3>Part 2: Fun with Frequencies!</h3>
+
+                <h4>Part 2.1: Image "Sharpening"</h4>
+
+                <p>In this section, I worked on sharpening an image. We used 
+                    something called unsharp masking, which sharpens an image by 
+                    isolating its high frequency details and then amplifying those. 
+                    Like we've talked about, high frequencies mark sharp changes in edges 
+                    or textures. To actually capture the high frequencies of an image, 
+                    first I convolved the original image with a Gaussian filter to get 
+                    a blurred image, which are the low frequencies. Then, I solved for 
+                    the high frequencies simply by subtracting the low frequencies 
+                    from the original image. Then to actually sharpen the original image, 
+                    I scaled and then added the high frequencies back to the original image 
+                    using a scalar factor alpha. So I was able to sharpen the image by 
+                    increasing contrast at edges/high frequencies/boundaries.
+                </p>
+
+                <p>I tested various alpha values. Alpha ultimately represetns the strength 
+                    of the sharpening. You can see that the image seems to get sharper and 
+                    sharper the higher alpha is, but there eventually are ringing artifacts 
+                    and more background grain/noise. It looks unseemly.
+                </p>
+
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <table style="width: 100%; text-align: center; border-collapse: collapse;">
+                        <tr>
+                            <td style="text-align: center;">
+                            <img src="images/2.1/taj.jpg" width="250px"/>
+                            <figcaption>Original image</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/2.1/taj_blurred.jpg" width="250px"/>
+                            <figcaption>Gaussian blur</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/2.1/taj_high.jpg" width="250px"/>
+                            <figcaption>High frequencies</figcaption>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="text-align: center;">
+                            <img src="images/2.1/taj_sharp_0.5.jpg" width="250px"/>
+                            <figcaption>Alpha = 0.5</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/2.1/taj_sharp_1.5.jpg" width="250px"/>
+                            <figcaption>Alpha = 1.5</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/2.1/taj_sharp_3.0.jpg" width="250px"/>
+                            <figcaption>Alpha = 3.0</figcaption>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                <p>I also tried taking an already sharp image, blurring it with a Gaussian 
+                    filter, and then trying to sharpen it again back to its original state. 
+                    While the resulting image does look sharp, it is not the same as it 
+                    originally was. By applying the Gaussian blur, we are losing information, 
+                    and it is not possible to regain that when resharpening. Also, if you 
+                    look closely, you can see ringing artifacts near the edges of the image.
+                </p>
+
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <table style="width: 100%; text-align: center; border-collapse: collapse;">
+                        <tr>
+                            <td style="text-align: center;">
+                            <img src="images/2.1/taj.jpg" width="250px"/>
+                            <figcaption>Original image</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/2.1/taj_blur.jpg" width="250px"/>
+                            <figcaption>Blurred</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/2.1/taj_blur_sharp.jpg" width="250px"/>
+                            <figcaption>Sharpened back (alpha = 1.5)</figcaption>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                <p>I tried it (high res -> blur -> sharpen) on another high resolution 
+                    image, but you can see the same thing happen.
+                </p>
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <table style="width: 100%; text-align: center; border-collapse: collapse;">
+                        <tr>
+                            <td style="text-align: center;">
+                            <img src="images/2.1/yosemite.jpg" width="400px"/>
+                            <figcaption>Original image</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/2.1/yosemite_blur.jpg" width="400px"/>
+                            <figcaption>Blurred</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/2.1/yosemite_blur_sharp.jpg" width="400px"/>
+                            <figcaption>Sharpened back (alpha = 1.5)</figcaption>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                <br>
+                <h4>Part 2.2: Hybrid Images</h4>
+
+                <p>Based on the paper by Oliva, Torralba, and Schyns, 
+                    I implemented hybrid images. Human perception processes 
+                    images using different spatial frequencies depending 
+                    on distance from the object. High spatial frequencies 
+                    are more visible when looking close up, whereas low 
+                    spatial frequencies dominate when looking from afar.
+                </p>
+
+                <p>To create a hybrid image, first I had to align the two 
+                    images. I picked keypoints from each as an anchor. For 
+                    example, with the classic example of Derek and Nutmeg, 
+                    I used their eyes as anchors/keypoints. Then, I applied 
+                    a 2D Gaussian (low-pass) filter to the second image to 
+                    extract low frequencies. To the first image, I subtracted 
+                    its low-pass version from its original self, to retain 
+                    high frequencies and edges. Then I summed those two outputs 
+                    and clipped to a valid intensity range. When applying filters 
+                    to the two iamges, I had to tune sigma values to see how much 
+                    information I wanted to retain. I had to preserve enough detail 
+                    of image 1 when looking up close, while still keeping enough 
+                    information from image 2 so that you could make it out when 
+                    looking from afar. Eventually I settled on sigma1 = 5, and 
+                    sigma2 = 8.
+                </p>
+
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <table style="width: 100%; text-align: center; border-collapse: collapse;">
+                        <tr>
+                            <td style="text-align: center;">
+                            <img src="images/2.2/DerekPicture.jpg" width="300px"/>
+                            <figcaption>Derek</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/2.2/nutmeg.jpg" width="300px"/>
+                            <figcaption>Nutmeg</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/2.2/derek_nutmeg.png" width="300px"/>
+                            <figcaption>Derek-Nutmeg hybrid</figcaption>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                <p>I tried it on some other images as well, and plotted the 
+                    frequencies too.
+                </p>
+
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <table style="width: 100%; text-align: center; border-collapse: collapse;">
+                        <tr>
+                            <td style="text-align: center;">
+                            <img src="images/2.2/harambe.jpg" width="300px"/>
+                            <figcaption>Harambe</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/2.2/cat2.jpg" width="300px"/>
+                            <figcaption>My cat Bella</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/2.2/cat_harambe.png" width="300px"/>
+                            <figcaption>Harambe-Bella hybrid</figcaption>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <table style="width: 100%; text-align: center; border-collapse: collapse;">
+                        <tr>
+                            <td style="text-align: center;">
+                            <img src="images/2.2/input1_fft_harambe.png" width="250px"/>
+                            <figcaption>Harambe FFT</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/2.2/input2_fft_bella.png" width="250px"/>
+                            <figcaption>Bella FFT</figcaption>
+                            </td>
+                            <td style="text-align: center;">
+                            <img src="images/2.2/high_pass_fft.png" width="250px"/>
+                            <figcaption>High pass FFT</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/2.2/low_pass_fft.png" width="250px"/>
+                            <figcaption>Low pass FFT</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/2.2/hybrid_fft.png" width="250px"/>
+                            <figcaption>Hybrid FFT</figcaption>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <table style="width: 100%; text-align: center; border-collapse: collapse;">
+                        <tr>
+                            <td style="text-align: center;">
+                            <img src="images/2.2/owl.jpg" width="300px"/>
+                            <figcaption>Owl</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/2.2/tiger.jpg" width="300px"/>
+                            <figcaption>Tiger</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/2.2/owl_tiger.png" width="300px"/>
+                            <figcaption>Owl-tiger hybrid</figcaption>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+
+                <h4>Part 2.3: Gaussian and Laplacian Stacks</h4>
+
+                <p>In this part, I implemented Gaussian and Laplacian stacks. 
+                    I implemented them from scratch, without downsampling (which 
+                    loses information). Normal image pyramids downsample; 
+                    instead, a stack maintains the original image dimensions across 
+                    all levels.
+                </p>
+                <p>A Gaussian stack is constructed by repeatedly applying 
+                    a Gaussian filter to an image but with increasing sigma 
+                    values (I doubled each time) without subsampling. The 
+                    Laplacian stack is computed by taking the difference between 
+                    adjacent levels of the Gaussian stack. The last level has the 
+                    lowest frequency residual base.
+                </p>
+
+                <h5>Original images</h5>
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <table style="width: 100%; text-align: center; border-collapse: collapse;">
+                        <tr>
+                            <td style="text-align: center;">
+                            <img src="images/2.3/apple.jpeg" width="200px"/>
+                            <figcaption>Apple</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/2.3/orange.jpeg" width="200px"/>
+                            <figcaption>Orange</figcaption>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                <h5>Visualizations of the high, medium, and low frequencies of the 
+                    two images, & the final reconstructions.
+                </h5>
+
+                <div style="display: flex; justify-content: center;">
+                    <img src="images/2.3/oraple_f.png" width="600px" />
+                </div>
+
+                <h5>Gaussian and Laplacian levels</h5>
+
+                <div style="display: flex; justify-content: center;">
+                    <img src="images/2.3/oraple_levels.png" width="800px" />
+                </div>
+
+                <br>
+                <h4>Part 2.4: Multi-resolution Blending</h4>
+
+                <p>I tried the original blending on a few other image pairs.</p>
+                
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <table style="width: 100%; text-align: center; border-collapse: collapse;">
+                        <tr>
+                            <td style="text-align: center;">
+                            <img src="images/2.3/squinkie1.jpg" width="200px"/>
+                            <figcaption>Squinkie 1</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/2.3/squinkie2.jpg" width="200px"/>
+                            <figcaption>Squinkie 2</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/2.3/squinkie_blend.jpg" width="200px"/>
+                            <figcaption>Squinkie blend</figcaption>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div style="display: flex; justify-content: center;">
+                    <img src="images/2.3/squinkie_f.png" width="800px" />
+                </div>
+
+                <br>
+
+                <p>I also experimented with a custom mask that would add 
+                    a third eye to a photo. In this case, I did it with a 
+                    photo of my cat Bella and an eye from a portrait photo.
+                </p>
+
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <table style="width: 100%; text-align: center; border-collapse: collapse;">
+                        <tr>
+                            <td style="text-align: center;">
+                            <img src="images/2.4/person1.jpg" width="200px"/>
+                            <figcaption>Person</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/2.4/cat4.jpg" width="200px"/>
+                            <figcaption>Bella</figcaption>
+                            </td>
+                            <td style="text-align: center; padding-bottom: 15px;">
+                            <img src="images/2.4/custom_blend.jpg" width="200px"/>
+                            <figcaption>Bella-eye blend</figcaption>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div style="display: flex; justify-content: center;">
+                    <img src="images/2.4/custom_levels.png" width="800px" />
+                </div>
+
+                <h4>Reflection</h4>
+                <p>Ultimately, I learned a lot about Laplacian pyramids 
+                    and Gaussian stack tactics, as well as a lot of cool 
+                    image modification techniques. I think they'd be cool 
+                    to experiment with in the final project. I think learning 
+                    how to do modifications without downsampling is valuable.
+                </p>
+
+            </div>
+
+        </div>
+        
+    </body>
+</html>
