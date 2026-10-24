@@ -31,6 +31,16 @@
                 techniques and seeing what the models came up with.
             </p>
 
+            <p>My general takeaways from this project were first of all, 
+                how easy it was to use a flow model. It was fun experimenting 
+                with different prompts, and while true art can never be 
+                replaced, it was fun to see the visualization steps and the 
+                process. And then the difference between single step denoising 
+                and flow matching was very interesting to me. The results have 
+                stark differences, and it was cool to see different modifications 
+                and improvements we could make to our flow model to strengthen it.
+            </p>
+
             <br>
 
             <h2>Part A: Exploring the Power of Flow Models</h2>
@@ -347,6 +357,191 @@
                 </div>
 
             </div>
+
+            <br>
+            <br>
+
+            <h2>Part B: Flow Matching from Scratch</h2>
+            
+            <div>
+                <h3>Part 1: Training a Single-Step Denoising UNet</h3>
+
+                <p>First, I built a simple on-step denoiser. Given a noisy 
+                    image, I worked on training a denoiser that maps the noisy 
+                    image to a clean one, by optimizing over an L2 loss.
+                </p>
+
+                <h4>Part 1.1 and 1.2: Implementing the UNet and using it to Train a Denoiser</h4>
+
+                <p>
+                    The denoiser is implemented as a UNet. I generated training 
+                    data pairs and visualized the noising, varying over sigma. 
+                    These are sample results on teh test set with noise level 0.5 
+                    after the first and fifth epochs.
+                </p>
+
+                <div style="display: flex; justify-content: center;">
+                    <img src="images/b/1/1.2.1/b121_ep1.png" width="100%"/>
+                </div>
+
+                <div style="display: flex; justify-content: center;">
+                    <img src="images/b/1/1.2.1/b121_ep5.png" width="100%"/>
+                </div>
+
+                <p>I also have this loss curve plot for the training process.</p>
+                <div style="display: flex; justify-content: center;">
+                    <img src="images/b/1/1.2.1/loss_plot.png" width="100%"/>
+                </div>
+
+                <br>
+
+                <p>
+                    Then, I checked to see how the denoiser did on different 
+                    sigmas that it wasn't trained for.
+                </p>
+                <div style="display: flex; justify-content: center;">
+                    <img src="images/b/1/1.2.2/ood.png" width="100%"/>
+                </div>
+
+                <br>
+
+                <p>Finally, I checked the model on denoising pure noise. 
+                    I trained the model again, but the input was pure 
+                    noise.
+                </p>
+
+                <div style="display: flex; justify-content: center;">
+                    <img src="images/b/1/1.2.3/b123_ep1.png" width="100%"/>
+                </div>
+
+                <div style="display: flex; justify-content: center;">
+                    <img src="images/b/1/1.2.3/b123_ep5.png" width="100%"/>
+                </div>
+
+                <p>Here is the loss.</p>
+                <div style="display: flex; justify-content: center;">
+                    <img src="images/b/1/1.2.3/b123_loss.png" width="100%"/>
+                </div>
+
+                <p>Based on the output results of the model, you can see 
+                    that the model is just generating a blurred image/output. 
+                    It is kind of computing the average of all 
+                    the digits, and not really doing the diversification/
+                    identification we may typically expect. This may be 
+                    happening because we are minimizing over L2 loss, which 
+                    means the model is unsure of a specific number/shape, and 
+                    instead computes the average, to minimize loss for all the 
+                    digits.
+                </p>
+
+                <br>
+
+                <h3>Part 2: Training a Flow Matching Model</h3>
+
+                <p>We saw that one-step denoising didn't work too well. 
+                    Instead, I implemented flow matching, which denoises 
+                    an image by training a UNet model to predict flow from 
+                    noisy to clean.
+                </p>
+
+                <h4>Part 2.1 and 2.2: Adding Time to the UNet and Training the UNet</h4>
+
+                <p>
+                    Now we are predicting flow, so I injected time into 
+                    the UNet model to condition it, using the FCBlock operator. 
+                    Then, I trained it by picking a random image from the training set, 
+                    picking a random timestep t, adding noise to the original image, and 
+                    then training the denoiser to predict the flow at that output. And 
+                    then I repeated this for multiple images and timesteps until the 
+                    model converged.
+                </p>
+
+                <p>Here is a training loss curve plot for time-conditioned UNet.</p>
+
+                <div style="display: flex; justify-content: center;">
+                    <img src="images/b/2/2.2/loss_22.png" width="100%"/>
+                </div>
+
+                <br>
+
+                <h4>Part 2.3: Sampling from the UNet</h4>
+
+                <p>
+                    The UNet could now be used for iterative denoising. Here 
+                    are the results. They're not amazing but they are a far cry 
+                    from single-step.
+                </p>
+
+                <div style="display: flex; justify-content: center;">
+                    <img src="images/b/2/2.3/23_ep1.png" width="100%"/>
+                </div>
+
+                <div style="display: flex; justify-content: center;">
+                    <img src="images/b/2/2.3/23_ep5.png" width="100%"/>
+                </div>
+
+                <div style="display: flex; justify-content: center;">
+                    <img src="images/b/2/2.3/23_ep10.png" width="100%"/>
+                </div>
+
+                <br>
+
+                <h4>Part 2.4 and 2.5: Adding Class-Conditioning to UNet and Training</h4>
+
+                <p>
+                    Now, I conditioned the UNet on the class of digits by 
+                    adding two more FCBlocks and implementing droupout of the 
+                    class-conditioning vector. Then I trained the model. 
+                    Here is the loss curve.
+                </p>
+
+                <div style="display: flex; justify-content: center;">
+                    <img src="images/b/2/2.5/25_loss.png" width="100%"/>
+                </div>
+
+                <br>
+
+                <h4>Part 2.6: Sampling from the UNet</h4>
+
+                <p>
+                    Finally, I sampled with class-conditioning and 
+                    used classifier-free guidance with gamma=5.0. 
+                    Here are generations with the scheduler.
+                </p>
+
+                <div style="display: flex; justify-content: center;">
+                    <img src="images/b/2/2.6/26_ep_1_sched.png" width="100%"/>
+                </div>
+
+                <div style="display: flex; justify-content: center;">
+                    <img src="images/b/2/2.6/26_ep_5_sched.png" width="100%"/>
+                </div>
+
+                <div style="display: flex; justify-content: center;">
+                    <img src="images/b/2/2.6/26_ep_10_sched.png" width="100%"/>
+                </div>
+
+                <br>
+
+                <p>Here are generations without the scheduler. I was able 
+                    to maintain a similar performance by choosing a fixed 
+                    learning rate model of 10^-3, so reducing it by order of 10. 
+                    This helps the model stay stable.
+                </p>
+
+                <div style="display: flex; justify-content: center;">
+                    <img src="images/b/2/2.6/26_ep_1_nosched.png" width="100%"/>
+                </div>
+
+                <div style="display: flex; justify-content: center;">
+                    <img src="images/b/2/2.6/26_ep_5_nosched.png" width="100%"/>
+                </div>
+
+                <div style="display: flex; justify-content: center;">
+                    <img src="images/b/2/2.6/26_ep_10_nosched.png" width="100%"/>
+                </div>
+
+                <br>
 
         </div>
         
