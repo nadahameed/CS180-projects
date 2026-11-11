@@ -357,6 +357,132 @@ x'\\y'
 
                 <br>
 
+            <h2>Part B: Feature Matching for Autostitching</h2>
+            
+            <div>
+                <h3>Part B.1: Harris Corner Detection</h3>
+
+                <p>First, I detected feature points that we could use later for 
+                    feature matching and image alignment. I used Harris corner 
+                    detection first, to identify locations with strong corner 
+                    responses. The detector assigns each pixel a response value 
+                    based on how much the image intensity changes when a small 
+                    window around that pixel is shifted in different directions. 
+                    This produced a lot of corners, many of which were clustered 
+                    together. Then, I implemented adaptive non-maximal suppression, 
+                    or ANMS. For each detected corner, I calculated its suppression 
+                    radius, or the distance to the nearest corner with a sufficiently 
+                    stronger Harris response. I kept points with larger suppression 
+                    radii and applied them to my image.
+                </p>
+
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <img src="images/B/harris_anms.png" width="140%"/>
+                    <figcaption>Harris vs. ANMS</figcaption>
+                </div>
+
+                <h3>Part B.2: Feature Descriptor Extraction</h3>
+
+                <p>This part, I extracted feature descriptors that represented the 
+                    local imagae structure surrounding each corner point. These can 
+                    later be compare to identify corresponding features between images. 
+                    For each point selected through ANMS, I got a 40x40 pixel window around 
+                    it, and sampled it to get an 8x8 patch. Then I applied bias and gain 
+                    normalization. Finally, I flattened each normalized patch into a 
+                    feature vector.
+                </p>
+
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <img src="images/B/40x40_patches.png" width="100%"/>
+                </div>
+
+                <br>
+
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <img src="images/B/8x8_descriptors.png" width="100%"/>
+                </div>
+
+                <h3>Part B.3: Feature Matching</h3>
+
+                <p>For this part, I identified corresponding features between two 
+                    images by comparing their descriptors from the previous part. 
+                    I used L2 to measure the similarity between feature descriptors: 
+                    for each descriptor in image1, I calculated its distance to every 
+                    descriptor in image2. To identify matches, I implemented Lowe's 
+                    nearest neighbors as described in the paper. For each feature, 
+                    I found its first and second nearest neighbors in the other image, 
+                    and then calculated the ratio between their distances. I kept the 
+                    match only if the ratio was below 0.8.
+                </p>
+
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <img src="images/B/feature_matches1.png" width="140%"/>
+                </div>
+
+                <br>
+
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <img src="images/B/feature_matches2.png" width="140%"/>
+                </div>
+
+                <br>
+
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <img src="images/B/feature_matches3.png" width="140%"/>
+                </div>
+
+
+                <br>
+                <h3>Part B.4: RANSAC for Robust Homography</h3>
+
+                <p>This section, I implemented 4 point RANSAC to estimate homographies 
+                    from automatically matched features. Since the feature matching 
+                    process can produce incorrect correspondences, there could be an 
+                    inaccurate transformation. At each iteration of RANSAC, I randomly 
+                    picked four feature correspondences and computed a homography using 
+                    part A's computeH(). Then I applied the estimated homography to all 
+                    the matched points and their correspondences in the second image. 
+                    Reprojection error (5 px) was how I checked if matches were valid. I 
+                    repeated this process for 1000 iterations and kept the homography 
+                    with the largest number of valid matches. Finally, I recomputed the 
+                    homography using all the valids from the best iteration. I used that 
+                    to generate three mosaics automatically.
+                </p>
+
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <table style="width: 100%; text-align: center; border-collapse: collapse;">
+                        <tr>
+                            <td style="text-align: center;">
+                            <img src="images/A/A4/mosaic1.png" width="500px"/>
+                            <figcaption>Manual</figcaption>
+                            </td>
+                            <td style="text-align: center;">
+                            <img src="images/B/4/mosaic1.png" width="500px"/>
+                            <figcaption>Automatic</figcaption>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="text-align: center;">
+                            <img src="images/A/A4/mosaic2.png" width="500px"/>
+                            <figcaption>Manual</figcaption>
+                            </td>
+                            <td style="text-align: center;">
+                            <img src="images/B/4/mosaic2.png" width="500px"/>
+                            <figcaption>Automatic</figcaption>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="text-align: center;">
+                            <img src="images/A/A4/mosaic3.png" width="500px"/>
+                            <figcaption>Manual</figcaption>
+                            </td>
+                            <td style="text-align: center;">
+                            <img src="images/B/4/mosaic3.png" width="500px"/>
+                            <figcaption>Automatic</figcaption>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
         </div>
         
     </body>
